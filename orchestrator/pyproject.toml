@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "papergraph-orchestrator"
+version = "0.1.0"
+description = "PaperGraph Intelligence Orchestrator - FastAPI coordination service"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.1",
+    "uvicorn[standard]>=0.24.0",
+    "redis>=5.0.1",
+    "py2neo>=2021.2.4",
+    "pydantic>=2.5.0",
+    "python-multipart>=0.0.6",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "httpx>=0.24.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]

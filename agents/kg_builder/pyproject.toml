@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "papergraph-kg-builder"
+version = "0.1.0"
+description = "PaperGraph Intelligence KG Builder Agent - Entity and relationship extraction"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "spacy>=3.7.2",
+    "redis>=5.0.1",
+    "py2neo>=2021.2.4",
+    "requests>=2.31.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]

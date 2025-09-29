@@ -1,0 +1,23 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "papergraph-fetcher"
+version = "0.1.0"
+description = "PaperGraph Intelligence Fetcher Agent - PubMed paper retrieval"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "biopython>=1.81",
+    "redis>=5.0.1",
+    "py2neo>=2021.2.4",
+    "requests>=2.31.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]

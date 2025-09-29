@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "papergraph-query-strategist"
+version = "0.1.0"
+description = "PaperGraph Intelligence Query Strategist Agent - Knowledge gap analysis"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "redis>=5.0.1",
+    "py2neo>=2021.2.4",
+    "requests>=2.31.0",
+]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=7.0.0",
+    "black>=23.0.0",
+    "ruff>=0.1.0",
+]

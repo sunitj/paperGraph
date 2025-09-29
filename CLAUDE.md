@@ -77,8 +77,8 @@ papergraph/
 # Manual setup
 cp .env.example .env                    # Configure environment
 docker-compose up -d                    # Start all services
-docker exec papergraph-ollama-1 ollama pull llama3.1:8b
-docker exec papergraph-ollama-1 ollama pull mistral:7b
+./scripts/setup_ollama.sh               # Pull LLM models
+python scripts/init_schema.py           # Initialize Neo4j schema
 ```
 
 ### Service Management

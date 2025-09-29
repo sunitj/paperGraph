@@ -16,10 +16,13 @@ sys.path.insert(0, '/app/shared')
 
 try:
     from llm_service import get_llm_provider
+    from neo4j_client import KnowledgeGraph
     llm = get_llm_provider()
-except ImportError:
-    print("Warning: LLM service not available")
+    kg = KnowledgeGraph()
+except ImportError as e:
+    print(f"Warning: Service not available: {e}")
     llm = None
+    kg = None
 
 app = FastAPI(
     title="PaperGraph Orchestrator",
@@ -58,8 +61,13 @@ async def health() -> Dict[str, Any]:
     except:
         pass
 
-    # Check Neo4j (stub for now)
+    # Check Neo4j
     neo4j_status = "unknown"
+    if kg and hasattr(kg, 'health_check'):
+        try:
+            neo4j_status = "healthy" if kg.health_check() else "unhealthy"
+        except Exception:
+            neo4j_status = "error"
 
     # Check LLM
     llm_status = "unknown"
@@ -78,7 +86,13 @@ async def health() -> Dict[str, Any]:
         "llm_status": llm_status,
         "redis": redis_status,
         "neo4j": neo4j_status,
-        "timestamp": "2024-01-01T00:00:00Z"
+        "neo4j_uri": os.getenv("NEO4J_URI", "bolt://neo4j:7687"),
+        "timestamp": "2024-01-01T00:00:00Z",
+        "services": {
+            "llm": llm_status,
+            "neo4j": neo4j_status,
+            "redis": redis_status
+        }
     }
 
 

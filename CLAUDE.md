@@ -11,13 +11,13 @@ PaperGraph Intelligence is a multi-agent literature analysis system that builds 
 ## System Architecture
 
 ### Core Components
-- **Ollama**: Local LLM service (llama3.1:8b primary, mistral:7b backup) - completely free
+- **Ollama**: Local LLM service running on host (llama3.1:8b primary, mistral:7b backup) - completely free
 - **Neo4j**: Knowledge graph database storing papers, entities, and relationships
 - **Redis**: Message queue and state management between agents
 - **Orchestrator**: FastAPI service coordinating agent workflows
 - **Streamlit UI**: User interface for queries and visualization
 
-**Note:** AWS Bedrock support exists as stub for future enterprise use, but Ollama is the primary focus.
+**Important:** Ollama runs on the host machine at `localhost:11434`. Docker services connect via `host.docker.internal:11434`. AWS Bedrock support exists as stub for future enterprise use, but Ollama is the primary focus.
 
 ### Multi-Agent System
 ```
@@ -75,35 +75,43 @@ papergraph/
 ./scripts/setup.sh
 
 # Manual setup
-cp .env.example .env                    # Configure environment
+cp .env.example .env                    # Configure environment (add PUBMED_EMAIL)
 docker-compose up -d                    # Start all services
-./scripts/setup_ollama.sh               # Pull LLM models
-python scripts/init_schema.py           # Initialize Neo4j schema
+docker-compose exec ollama ollama pull llama3.1:8b   # Pull primary LLM model
+docker-compose exec ollama ollama pull mistral:7b    # Pull backup model
+python scripts/init_schema.py           # Initialize Neo4j schema (optional)
 ```
 
 ### Service Management
 ```bash
 docker-compose up -d                    # Start all services
+docker-compose up --build [service]     # Rebuild and start specific service
 docker-compose down                     # Stop all services
+docker-compose down -v                  # Stop and remove volumes (full reset)
 docker-compose restart [service]        # Restart specific service
-docker-compose logs -f [service]        # View service logs
+docker-compose logs -f [service]        # View service logs (follow mode)
 docker-compose ps                       # Check service status
+docker-compose exec [service] bash      # Access service shell
 ```
 
 ### Local Development with UV
 ```bash
 # Work on orchestrator
 cd orchestrator
-uv sync                                 # Install dependencies
-uv run uvicorn main:app --reload        # Run with hot reload
+uv sync                                 # Install dependencies (creates .venv)
+uv run uvicorn main:app --reload        # Run with hot reload on port 8000
 uv run pytest                           # Run tests
+uv run pytest -v                        # Run tests with verbose output
 uv run ruff check .                     # Lint code
 uv run black .                          # Format code
 
 # Work on agents (similar pattern for fetcher, kg_builder, query_strategist)
 cd agents/fetcher
-uv sync
-uv run python agent.py                 # Run agent directly
+uv sync                                 # Install dependencies
+uv run python agent.py                  # Run agent directly (standalone mode)
+
+# Note: Each service has its own pyproject.toml and isolated dependencies
+# The shared/ module is copied into agent containers at build time
 ```
 
 ### Testing and Verification
@@ -188,11 +196,44 @@ MATCH (n) RETURN count(n)  # Count all nodes
 ### LLM Service
 The `agents/shared/llm_service.py` provides LLM abstraction with Ollama as the primary provider. Bedrock exists as a future stub. Always use `get_llm_provider()` which defaults to Ollama for the MVP.
 
+**Usage Pattern:**
+```python
+from shared.llm_service import get_llm_provider, generate_text
+
+# Factory pattern (recommended)
+llm = get_llm_provider()  # Reads LLM_PROVIDER env var
+response = llm.generate(prompt, system="You are a helpful assistant")
+
+# Quick helper
+response = generate_text(prompt, system="...")
+```
+
 ### Redis Communication
 Agents communicate via Redis queues using JSON messages. Use descriptive queue names like `fetch_queue`, `analysis_queue`.
 
+**Message Pattern:**
+```python
+import redis
+import json
+
+r = redis.from_url(os.getenv("REDIS_URL"))
+r.lpush("queue_name", json.dumps({"key": "value"}))  # Producer
+message = json.loads(r.brpop("queue_name")[1])       # Consumer (blocking)
+```
+
 ### Neo4j Operations
-Use the `KnowledgeGraph` client class for all database operations. It provides helper methods for creating entities, relationships, and querying coverage.
+Use the `KnowledgeGraph` client class (`agents/shared/neo4j_client.py`) for all database operations. It provides helper methods for creating entities, relationships, and querying coverage.
+
+**Usage Pattern:**
+```python
+from shared.neo4j_client import KnowledgeGraph
+
+kg = KnowledgeGraph()  # Reads NEO4J_* env vars
+kg.create_paper(pmid, title, abstract, year)
+kg.create_entity("E. coli", "Organism", ncbi_id="562")
+kg.create_relationship(subj_name, subj_type, "PRODUCES", obj_name, obj_type,
+                       confidence=0.9, paper_pmid=pmid)
+```
 
 ### Pre-seeded Knowledge
 The system supports 6 pre-built topics (Gut Microbiome, Protein Engineering, etc.) with 20-30 papers each for faster initial queries.
@@ -217,14 +258,25 @@ docker-compose logs -f orchestrator
 docker-compose logs -f fetcher
 docker-compose logs -f kg_builder
 
+# Check all services at once
+docker-compose logs --tail=50
+
 # Test individual components
 cd orchestrator && uv run pytest -v
-cd agents/fetcher && uv run python agent.py --test
 python scripts/test_system.py
 
-# Reset environment
+# Test connections
+curl http://localhost:8000/health          # Orchestrator
+curl http://localhost:11434/api/tags       # Ollama (check models)
+docker-compose exec redis redis-cli ping   # Redis
+docker-compose exec neo4j cypher-shell -u neo4j -p papergraph123 "RETURN 1"  # Neo4j
+
+# Reset environment (complete cleanup)
 docker-compose down -v
 docker-compose up --build
+
+# Rebuild single service after code changes
+docker-compose up --build orchestrator
 ```
 
 ### Swapping LLM Providers
@@ -247,3 +299,4 @@ Change `LLM_PROVIDER` environment variable to switch between Ollama and Bedrock 
 - **FastAPI**: Modern async API framework with auto-documentation
 - **UV**: Fast Python package manager for all services
 - **Multi-container**: Each service has its own pyproject.toml and Dockerfile
+- **Shared Module**: `agents/shared/` contains common code (llm_service.py, neo4j_client.py) copied into agent containers at build time

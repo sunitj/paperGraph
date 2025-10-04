@@ -11,7 +11,7 @@ COPY agents/fetcher/pyproject.toml agents/fetcher/uv.lock* ./
 COPY agents/shared/ /app/shared/
 
 # Install dependencies
-RUN uv sync --frozen --no-cache
+RUN uv sync --no-cache
 
 # Copy application code
 COPY agents/fetcher/ .

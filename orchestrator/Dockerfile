@@ -7,16 +7,16 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 
 # Copy project files
-COPY pyproject.toml uv.lock* ./
+COPY orchestrator/pyproject.toml orchestrator/uv.lock* ./
 
 # Install dependencies
-RUN uv sync --frozen --no-cache
+RUN uv sync --no-cache
 
 # Copy application code
-COPY . .
+COPY orchestrator/ .
 
-# Copy shared modules (these will be copied from parent context)
-COPY ../agents/shared/ /app/shared/ || true
+# Copy shared modules
+COPY agents/shared/ /app/shared/
 
 # Expose port
 EXPOSE 8000

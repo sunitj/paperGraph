@@ -11,10 +11,10 @@ COPY agents/kg_builder/pyproject.toml agents/kg_builder/uv.lock* ./
 COPY agents/shared/ /app/shared/
 
 # Install dependencies
-RUN uv sync --frozen --no-cache
+RUN uv sync --no-cache
 
-# Download spaCy model
-RUN uv run python -m spacy download en_core_web_sm
+# Download spaCy model (skip for MVP - will use stub implementation)
+# RUN uv run python -m spacy download en_core_web_sm
 
 # Copy application code
 COPY agents/kg_builder/ .

@@ -4,6 +4,8 @@ Multi-agent literature analysis system with knowledge graph learning. Uses AI ag
 
 ## 🚀 Quick Start
 
+> **Current Status**: MVP implementation with working infrastructure and stub agent implementations. Ollama LLM integration and Neo4j knowledge graph are functional. Agent logic uses placeholder implementations for rapid development.
+
 ### Prerequisites
 - Docker and Docker Compose
 - [UV](https://docs.astral.sh/uv/) for local Python development (optional)
@@ -23,16 +25,20 @@ Multi-agent literature analysis system with knowledge graph learning. Uses AI ag
    PUBMED_EMAIL=your_email@example.com
    ```
 
-3. **Start services**
+3. **Install Ollama (if not already installed)**
    ```bash
-   docker-compose up -d
+   # The system uses host Ollama installation, not containerized
+   # Download from https://ollama.ai or use:
+   curl -fsSL https://ollama.com/install.sh | sh
+
+   # Pull required models
+   ollama pull llama3.1:8b
+   ollama pull mistral:7b
    ```
 
-4. **Pull LLM models** (required for first setup)
+4. **Start services**
    ```bash
-   # Wait for Ollama to start (~30 seconds)
-   docker exec papergraph-ollama-1 ollama pull llama3.1:8b
-   docker exec papergraph-ollama-1 ollama pull mistral:7b
+   docker-compose up -d
    ```
 
 5. **Access interfaces**
@@ -43,7 +49,7 @@ Multi-agent literature analysis system with knowledge graph learning. Uses AI ag
 ## 📋 System Architecture
 
 ### Services
-- **Ollama**: Local LLM service (port 11434)
+- **Ollama**: Local LLM service on host (port 11434) - services connect via `host.docker.internal`
 - **Neo4j**: Knowledge graph database (ports 7474, 7687)
 - **Redis**: Message queue and state management (port 6379)
 - **Orchestrator**: FastAPI coordination service (port 8000)
@@ -52,6 +58,8 @@ Multi-agent literature analysis system with knowledge graph learning. Uses AI ag
   - KG Builder: Entity and relationship extraction
   - Query Strategist: Knowledge gap analysis
 - **UI**: Streamlit interface (port 8501)
+
+**Note:** Ollama runs on the host machine, not in a container. Services access it via `host.docker.internal:11434`.
 
 ### Data Flow
 ```
@@ -162,27 +170,53 @@ papergraph/
 
 ### Common Issues
 
-1. **Ollama not responding**
+1. **Services not running**
    ```bash
-   docker-compose restart ollama
-   docker exec papergraph-ollama-1 ollama list
+   # Check if services are up
+   docker-compose ps
+
+   # If not running, start them
+   docker-compose up -d
    ```
 
-2. **Neo4j authentication failed**
+2. **Ollama not responding**
    ```bash
+   docker-compose restart ollama
+   docker-compose exec ollama ollama list
+   ```
+
+3. **Neo4j authentication failed**
+   ```bash
+   # Verify .env has NEO4J_PASSWORD=papergraph123
+   # If changed, reset Neo4j
    docker-compose down -v  # Remove volumes
    docker-compose up -d neo4j
    ```
 
-3. **Services won't start**
+4. **Services won't start**
    ```bash
    docker-compose down
    docker system prune -f
    docker-compose up --build
    ```
 
-4. **Port conflicts**
-   Edit `docker-compose.yml` to change port mappings
+5. **Port conflicts**
+   ```bash
+   # Check what's using the ports
+   lsof -i :8000  # Orchestrator
+   lsof -i :8501  # Streamlit
+   lsof -i :7474  # Neo4j
+   lsof -i :11434 # Ollama
+
+   # Either stop conflicting services or edit docker-compose.yml port mappings
+   ```
+
+6. **Missing UV lock files**
+   ```bash
+   # Lock files are generated on first sync
+   cd orchestrator
+   uv sync  # Creates uv.lock
+   ```
 
 ### Logs and Debugging
 
@@ -208,16 +242,34 @@ Key endpoints:
 - `GET /stats` - Knowledge graph statistics
 - `POST /query` - Process research questions
 
+## 📊 Implementation Status
+
+### ✅ Completed (MVP)
+- **Infrastructure**: Docker Compose orchestration with all services
+- **Ollama Integration**: Local LLM service with llama3.1:8b and mistral:7b
+- **Neo4j Setup**: Knowledge graph database with schema
+- **Redis**: Message queue for agent communication
+- **Orchestrator**: FastAPI service with health checks and stats endpoints
+- **UI Framework**: Streamlit interface with system monitoring
+- **Shared Modules**: LLM abstraction layer and Neo4j client
+
+### 🚧 Stub Implementations (Ready for Enhancement)
+- **Fetcher Agent**: Returns fake papers (needs Biopython integration)
+- **KG Builder Agent**: Placeholder entity extraction (needs spaCy + LLM prompts)
+- **Query Strategist**: Placeholder gap analysis (needs query generation logic)
+- **End-to-End Flow**: Basic orchestration (needs full workflow implementation)
+
+### 🔜 Future Enhancements
+- Real PubMed API integration with Biopython
+- LLM-powered entity and relationship extraction
+- Knowledge graph coverage analysis
+- Intelligent query generation based on gaps
+- Pre-seeded knowledge graphs for common domains
+- Advanced visualization and citation tracking
+
 ## 🤝 Contributing
 
-This is the MVP implementation (PR1: Project Scaffolding). Future PRs will add:
-- Real LLM integration (PR2)
-- Neo4j schema and operations (PR3)
-- PubMed integration (PR4)
-- Entity extraction (PR5)
-- Gap analysis (PR6)
-- Complete orchestration (PR7)
-- Full UI implementation (PR8)
+See implementation status above for development priorities.
 
 ## 📄 License
 

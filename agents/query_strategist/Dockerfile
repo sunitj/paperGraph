@@ -11,7 +11,7 @@ COPY agents/query_strategist/pyproject.toml agents/query_strategist/uv.lock* ./
 COPY agents/shared/ /app/shared/
 
 # Install dependencies
-RUN uv sync --frozen --no-cache
+RUN uv sync --no-cache
 
 # Copy application code
 COPY agents/query_strategist/ .

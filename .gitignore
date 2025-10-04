@@ -96,6 +96,8 @@ temp/
 
 # UV
 .uv/
+uv.lock
+**/uv.lock
 
 # Jupyter
 .ipynb_checkpoints/

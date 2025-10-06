@@ -66,6 +66,28 @@ Multi-agent literature analysis system with knowledge graph learning. Uses AI ag
 User Question → Query Strategist → Fetcher Agent → KG Builder → Orchestrator → UI
 ```
 
+## 🔬 PubMed API Setup
+
+The fetcher agent uses NCBI's E-utilities API to retrieve papers. **You must provide an email address** (required by NCBI policy).
+
+### Rate Limits
+- **Without API key:** 3 requests per second
+- **With API key:** 10 requests per second (recommended for heavy use)
+
+### Get an API Key (Optional)
+1. Create NCBI account: https://www.ncbi.nlm.nih.gov/account/
+2. Generate API key in account settings
+3. Add to `.env`: `PUBMED_API_KEY=your_key_here`
+
+### Configure
+```bash
+# .env
+PUBMED_EMAIL=your_email@example.com  # Required
+PUBMED_API_KEY=your_api_key          # Optional but recommended
+```
+
+---
+
 ## 🛠️ Development
 
 ### Local Development with UV
@@ -100,6 +122,9 @@ docker-compose ps
 curl http://localhost:8000/health
 curl http://localhost:7474
 curl http://localhost:11434/api/tags
+
+# Test fetcher agent with real PubMed query
+python scripts/test_fetcher.py
 
 # View logs
 docker-compose logs -f
@@ -252,9 +277,9 @@ Key endpoints:
 - **Orchestrator**: FastAPI service with health checks and stats endpoints
 - **UI Framework**: Streamlit interface with system monitoring
 - **Shared Modules**: LLM abstraction layer and Neo4j client
+- **Fetcher Agent**: Real PubMed integration with Biopython E-utilities API, rate limiting, error handling
 
 ### 🚧 Stub Implementations (Ready for Enhancement)
-- **Fetcher Agent**: Returns fake papers (needs Biopython integration)
 - **KG Builder Agent**: Placeholder entity extraction (needs spaCy + LLM prompts)
 - **Query Strategist**: Placeholder gap analysis (needs query generation logic)
 - **End-to-End Flow**: Basic orchestration (needs full workflow implementation)

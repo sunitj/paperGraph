@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Fetcher Agent - Retrieves papers from PubMed (stub implementation)
+Fetcher Agent - Retrieves papers from PubMed using Biopython
 """
 
 import sys
@@ -8,6 +8,7 @@ import os
 import time
 import json
 import redis
+from Bio import Entrez
 
 sys.path.insert(0, '/app/shared')
 from neo4j_client import KnowledgeGraph
@@ -25,24 +26,124 @@ class FetcherAgent:
         )
         self.max_results = int(os.getenv("MAX_PAPERS_PER_QUERY", "20"))
 
+        # Configure Entrez for PubMed API
+        Entrez.email = os.getenv("PUBMED_EMAIL", "papergraph@example.com")
+        api_key = os.getenv("PUBMED_API_KEY")
+        if api_key:
+            Entrez.api_key = api_key
+            self.rate_limit_delay = 0.11  # 10 requests/sec with API key
+        else:
+            self.rate_limit_delay = 0.34  # 3 requests/sec without API key
+
+        self.last_request_time = 0
+
+    def _rate_limit(self):
+        """Enforce NCBI rate limiting"""
+        elapsed = time.time() - self.last_request_time
+        if elapsed < self.rate_limit_delay:
+            time.sleep(self.rate_limit_delay - elapsed)
+        self.last_request_time = time.time()
+
     def fetch_papers(self, query: str, max_results: int = None) -> list:
-        """Fetch papers from PubMed (stub)"""
+        """Fetch papers from PubMed using Biopython"""
         max_results = max_results or self.max_results
-        print(f"🔍 Searching PubMed (stub): {query}")
 
-        # Stub implementation - return fake papers
-        fake_papers = [
-            {
-                'pmid': f'STUB{i:06d}',
-                'title': f'Stub Paper {i}: {query}',
-                'abstract': f'This is a stub abstract for paper {i} about {query}.',
-                'year': 2024
-            }
-            for i in range(1, min(max_results + 1, 6))  # Return up to 5 fake papers
-        ]
+        try:
+            print(f"🔍 Searching PubMed: {query}")
 
-        print(f"   ✅ Found {len(fake_papers)} papers (stub)")
-        return fake_papers
+            # Step 1: Search PubMed for PMIDs
+            self._rate_limit()
+            handle = Entrez.esearch(
+                db="pubmed",
+                term=query,
+                retmax=max_results,
+                sort="relevance"
+            )
+            record = Entrez.read(handle)
+            handle.close()
+
+            pmids = record.get("IdList", [])
+            print(f"   📄 Found {len(pmids)} PMIDs")
+
+            if not pmids:
+                print(f"   ⚠️  No papers found")
+                return []
+
+            # Step 2: Fetch paper details
+            self._rate_limit()
+            handle = Entrez.efetch(
+                db="pubmed",
+                id=pmids,
+                rettype="abstract",
+                retmode="xml"
+            )
+            articles = Entrez.read(handle)
+            handle.close()
+
+            # Step 3: Parse articles
+            papers = []
+            for article in articles.get('PubmedArticle', []):
+                try:
+                    paper_data = self._parse_article(article)
+                    if paper_data:
+                        papers.append(paper_data)
+                except Exception as e:
+                    print(f"   ⚠️  Error parsing article: {e}")
+                    continue
+
+            print(f"   ✅ Successfully parsed {len(papers)} papers")
+            return papers
+
+        except Exception as e:
+            print(f"   ❌ PubMed error: {e}")
+            return []
+
+    def _parse_article(self, article):
+        """Parse PubMed article XML"""
+        medline = article.get('MedlineCitation', {})
+
+        # Extract PMID
+        pmid = str(medline.get('PMID', ''))
+        if not pmid:
+            return None
+
+        # Extract article data
+        article_data = medline.get('Article', {})
+
+        # Title
+        title = article_data.get('ArticleTitle', '')
+        if isinstance(title, list):
+            title = ' '.join(title)
+
+        # Abstract
+        abstract_data = article_data.get('Abstract', {})
+        abstract_text = abstract_data.get('AbstractText', [])
+
+        if isinstance(abstract_text, list):
+            # Handle structured abstracts
+            abstract = ' '.join([str(text) for text in abstract_text])
+        else:
+            abstract = str(abstract_text)
+
+        # Year
+        pub_date = article_data.get('Journal', {}).get('JournalIssue', {}).get('PubDate', {})
+        year = pub_date.get('Year', pub_date.get('MedlineDate', '2024'))
+
+        # Extract just the year if it's a range like "2023-2024"
+        if isinstance(year, str) and '-' in year:
+            year = year.split('-')[0]
+
+        try:
+            year = int(year)
+        except:
+            year = 2024
+
+        return {
+            'pmid': pmid,
+            'title': title,
+            'abstract': abstract,
+            'year': year
+        }
 
     def store_papers(self, papers: list, query_id: str):
         """Store papers in Neo4j and mark for analysis"""
@@ -50,7 +151,7 @@ class FetcherAgent:
 
         for paper in papers:
             try:
-                # Store in Neo4j (stub)
+                # Store in Neo4j
                 self.kg.create_paper(
                     pmid=paper['pmid'],
                     title=paper['title'],
@@ -119,7 +220,7 @@ class FetcherAgent:
     def run(self):
         """Main agent loop"""
         print("="*60)
-        print("🔬 Fetcher Agent Started (stub)")
+        print("🔬 Fetcher Agent Started")
         print("="*60)
         print(f"Max papers per query: {self.max_results}")
         print(f"Listening on: fetch_queue")

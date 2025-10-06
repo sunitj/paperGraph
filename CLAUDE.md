@@ -24,10 +24,10 @@ PaperGraph Intelligence is a multi-agent literature analysis system that builds 
 User Question → Query Strategist → Fetcher Agent → KG Builder → Orchestrator → UI
 ```
 
-1. **Query Strategist**: Analyzes knowledge graph gaps and generates targeted PubMed queries
-2. **Fetcher Agent**: Retrieves papers from PubMed using Biopython
-3. **KG Builder Agent**: Extracts entities and relationships using LLM and spaCy
-4. **Orchestrator**: Coordinates workflow and synthesizes final answers
+1. **Query Strategist**: Analyzes knowledge graph gaps and generates targeted PubMed queries (stub)
+2. **Fetcher Agent**: Retrieves papers from PubMed using Biopython E-utilities API
+3. **KG Builder Agent**: Extracts entities and relationships using LLM and spaCy (stub)
+4. **Orchestrator**: Coordinates workflow and synthesizes final answers (partial)
 
 ## Project Structure
 
@@ -300,3 +300,4 @@ Change `LLM_PROVIDER` environment variable to switch between Ollama and Bedrock 
 - **UV**: Fast Python package manager for all services
 - **Multi-container**: Each service has its own pyproject.toml and Dockerfile
 - **Shared Module**: `agents/shared/` contains common code (llm_service.py, neo4j_client.py) copied into agent containers at build time
+- Use the .ideas directory to read or write documentations related to implementation and roadmap
